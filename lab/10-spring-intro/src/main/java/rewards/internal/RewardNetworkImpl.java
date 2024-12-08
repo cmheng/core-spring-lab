@@ -1,26 +1,26 @@
 package rewards.internal;
 
+import common.money.MonetaryAmount;
+import rewards.AccountContribution;
 import rewards.Dining;
 import rewards.RewardConfirmation;
 import rewards.RewardNetwork;
+import rewards.internal.account.Account;
 import rewards.internal.account.AccountRepository;
+import rewards.internal.restaurant.Restaurant;
 import rewards.internal.restaurant.RestaurantRepository;
 import rewards.internal.reward.RewardRepository;
 
 /**
  * Rewards an Account for Dining at a Restaurant.
- * 
  * The sole Reward Network implementation. This object is an application-layer service responsible for coordinating with
  * the domain-layer to carry out the process of rewarding benefits to accounts for dining.
- * 
  * Said in other words, this class implements the "reward account for dining" use case.
- *
  * TODO-00: In this lab, you are going to exercise the following:
  * - Understanding internal operations that need to be performed to implement
  *   "rewardAccountFor" method of the "RewardNetworkImpl" class
  * - Writing test code using stub implementations of dependencies
  * - Writing both target code and test code without using Spring framework
- *
  * TODO-01: Review the Rewards Application document (Refer to the lab document)
  * TODO-02: Review project dependencies (Refer to the lab document)
  * TODO-03: Review Rewards Commons project (Refer to the lab document)
@@ -30,11 +30,11 @@ import rewards.internal.reward.RewardRepository;
  */
 public class RewardNetworkImpl implements RewardNetwork {
 
-	private AccountRepository accountRepository;
+	private final AccountRepository accountRepository;
 
-	private RestaurantRepository restaurantRepository;
+	private final RestaurantRepository restaurantRepository;
 
-	private RewardRepository rewardRepository;
+	private final RewardRepository rewardRepository;
 
 	/**
 	 * Creates a new reward network.
@@ -50,9 +50,11 @@ public class RewardNetworkImpl implements RewardNetwork {
 	}
 
 	public RewardConfirmation rewardAccountFor(Dining dining) {
-		// TODO-07: Write code here for rewarding an account according to
-		//          the sequence diagram in the lab document
-		// TODO-08: Return the corresponding reward confirmation
-		return null;
+		Account account = accountRepository.findByCreditCard(dining.getCreditCardNumber());
+		Restaurant restaurant = restaurantRepository.findByMerchantNumber(dining.getMerchantNumber());
+		MonetaryAmount amount = restaurant.calculateBenefitFor(account, dining);
+		AccountContribution contribution = account.makeContribution(amount);
+		accountRepository.updateBeneficiaries(account);
+		return rewardRepository.confirmReward(contribution, dining);
 	}
 }
