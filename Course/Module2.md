@@ -18,12 +18,12 @@ public class ApplicationConfig {
 
     @Bean 
     public DataSource dataSource() {
-        BasicDataSource dataSource = new BasicDataSource();
-        dataSource.setDriverClassName("org.postgresql.Driver");
-        dataSource.setUrl("jdbc:postgresql://localhost/transfer");
-        dataSource.setUsername("transfer-app");
-        dataSource.setPassword("secret45");
-        return dataSource;
+        BasicDataSource ds = new BasicDataSource();
+        ds.setDriverClassName("org.postgresql.Driver");
+        ds.setUrl("jdbc:postgresql://localhost/transfer");
+        ds.setUsername("transfer-app");
+        ds.setPassword("secret45");
+        return ds;
     }
 }
 ```
