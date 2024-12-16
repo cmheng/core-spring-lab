@@ -152,7 +152,108 @@ public class JdbcAccountRepository implements AccountRepository {...}
 At startup: NoSuchBeanDefinitionException, no unique bean of type [AccountRepository] is defined: expected single bean but found 2...
 
 Autowiring and Disambiguation - 2
+* Use of the @Qualifier annotation
 
+```java
+@Component("transferService")
+public class TransferServiceImpl implements TransferService {
+    @Autowired
+    public TransferServiceImpl(@Qualifier("jdbcAnnocationRepository") AccountRepository accountRepository) {...}
+}
+```
+
+```java
+@Component("jdbcAccountRepository")
+public class JpaAccountRepository implements AccountRepository {...}
+```
+
+```java
+@Component("jpaAccountRepository")
+public class JdbcAccountRepository implements AccountRepository {...}
+```
+
+Autowiring and Disambiguation - 3
+* Autowired resolution rules
+    1. Look for unique bean of required type
+    2. Use @Qualifier if supplied
+    3. Try to find a matching bean by name
+
+Component Names
+* When not specified
+    - Names are auto-generated
+        * De-capitalized non-qualified class name by default
+        * But will pick up implementation details from class name
+    - Recommendation: never rely on generated names!
+* When specified
+    - Allow disambiguation when 2 bean classes implement the same interface
+
+Using @Value to set Attributes
+* Constructor-injection
+```java
+@Autowired // Optional if this is the only constructor
+public TransferServiceImpl(@Value("${daily.limit}") int max) {
+    this.maxTransfersPerDay = max;
+}
+```
+
+* Method-injection
+```java
+@Autowired
+public void setDailyLimit(@Value("${daily.limit}") int max) {
+    this.maxTransfersPerDay = max;
+}
+```
+
+* Field-injection
+```java
+@Value("#{environment['daily.limit']}")
+int maxTransfersPerDay;
+```
+
+Delayed Initialization
+* Beans normally created on startup when applicaiton context created
+* Lazy beans created first time used
+    - When dependency injected
+    - By ApplicationContext.getBean methods
+* Useful if bean's dependencies not available at startup
+```java
+@Lazy @Component
+public class MailService {
+    public MailService(@Value("smtp:...") String url) {
+        // connect to mail-server
+    }
+}
+```
+
+Annotations syntax vs Java Config
+* Similar options are available
+
+Annotations
+```java
+@Component("transferService")
+@Scope("prototype")
+@Profile("dev")
+@Lazy(true)
+public class TransferServiceImpl implements TransferService{
+    @Autowired
+    public TransferServiceImpl (AccountRepository accRep) {...}
+}
+```
+
+Java Configuration
+```java
+@Configuration
+public class TransferConfiguration {
+    
+    @Bean(name="transferService")
+    @Scope("prototype")
+    @Profile("dev")
+    @Lazy("true")
+    public TransferService tsvc() {
+        return new TransferServiceImpl(accountRepository());
+    }
+}
+```
 
 ## Configuration Choices
 
