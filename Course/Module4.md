@@ -257,8 +257,186 @@ public class TransferConfiguration {
 
 ## Configuration Choices
 
+Autowiring Constructors
+* If a class only has a default constructor
+    - Nothing to annotate
+* If a class has only one non-default constructor
+    - It is the only constructor available, Spring will call it
+    - `@Autowired` is optional
+* If a class has more than one constructor
+    - Spring invokes zero-argument constructor by default (if it exists)
+    0 Or you *must* annotate with `@Autowired` the one you want Spring to use
+
+About Component Scanning
+* Components are scanned at startup
+    - JAR dependencies also scanned!
+    - Could result in slower startup time if too many files scanned
+        * Especially for large applications
+* What are the best practices?
+
+Component Scanning Best Practices
+* Really bad:
+```java
+@ComponentScan({"org", "com"})
+```
+
+* Still bad:
+```java
+@ComponentScan({"com"})
+```
+
+* OK:
+```java
+@ComponentScan({"com.bank.app"})
+```
+
+* Optimizied:
+```java
+@ComponentScan({"com.bank.app.repository", "com.bank.app.service", "com.bank.app.controller"})
+```
+
+Mixing Java Config and Annotations
+* Common approach selecting when to use:
+    - Annotations
+        * In some cases, Spring will give no other choice!
+        * Stereotype annotations
+    - Java Configuration
+        * When is it desired or required to keep beans decoupled from Spring (legacy code, or code that can be used outside of Spring runtime)
+        * When managing configurations in a single logical location is an important issue
+        * Can be used for all classes (not just your own)
 
 ## Adding Startup and Shutdown Behaviors
 
+@PostConstruct and @PreDestroy
+* Add behavior at startup and shutdown
+```java
+public class JdbcAccountRepository {
+    
+    // Method called at startup after all dependencies are injected
+    @PostConstruct
+    void populateCache() {}
+
+    // Method called at shutdown prior to destroying the bean instance
+    @PreDestroy
+    void flushCache() {}
+}
+```
+
+Annotated methods can have any visibility but must take not parameters and only return void.
+
+* Beans are created in the usual ways:
+    - Returned from @Bean methods
+    - Found and created by the component-scanner
+* Spring then invokes these methods automatically
+    - During bean-creation process
+* These are not Spring annotations
+    - Defined by JSR-250, part of Java since Java 6
+    - In `javax.annotation` package
+    - Support by Spring, and by Java EE
+
+@PostConstruct
+* Called after setter injections are performed
+```java
+public class JdbcAccountRepository {
+    private DataSource dataSource;
+
+    @Autowired
+    public void setDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    @PostConstruct
+    public void populateCache() {
+        Connection con = dataSource.getConnection(); //...
+    }
+}
+```
+Constructor injection -> Setter injection -> @PostConstruct method(s) called
+
+@PreDestroy
+* PreDestroy methods called if application shuts down normally. Not if the process dies or is killed.
+* Called when a `ConfigurableApplicationContext' is closed
+    - Useful for releasing resources & 'cleaning up'
+    - Not called for prototype beans
+
+```java
+ConfigurableApplicationContext context = SpringApplication.run(...);
+...
+context.close() // Trigger call of all @PreDestroy annotated methods
+```
+
+Lifecycle Method Attributes of @Bean Annotation
+* Alternatively, @Bean has options to define these life-cycle methods
+```java
+@Bean(initMethod="populateCache", destroyMethod="flushCache")
+public AccountRepository accountRepository() {
+    // ...
+}
+```
+
+* Which scheme to use?
+    - Use `@PostConstruct/@PreDestroy` for your own classes
+    - Use Lifecycle Method attributes of `@Bean` annotation for classes you didn't write and can't annotate
+
+Use a JVM Shutdown Hook
+* Shutdown hooks
+    - Automatically run when JVM shuts down
+* SpringApplication.run
+    - Does this automatically
+    - Returns a ConfigurableApplicationContext
 
 ## Stereotype and Meta Annotations
+
+Stereotype Annotations
+* Component scanning also checks for annotations that are themselves annotated with @Component
+    - So-called stereotype annotations
+
+```java
+@Service("transferService")
+public class TransferServiceImpl implements TransferService {...}
+```
+
+@Service annotation is part of the Spring framework
+
+Predefined Stereotype Annotations
+* Spring framework stereotype annotations
+    - @Component
+        * @Service
+        * @Repostiory
+        * @Controller
+        * @RestController
+        * @Configuration
+
+Meta-annotations
+* Annotation which can be used to annotate other annotations
+    - e.g. all service beans should be configurable using component scanning and be transactional
+
+```java
+@ComponentScan("...)
+```
+
+```java
+@MyTransactionalService
+public class TransferServiceImpl implements TransferService {...}
+```
+
+```java
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+@Service    // meta-annotation
+@Transactional(timeout=60)
+public @interface MyTransactionalService {
+    String value() default "";
+}
+```
+
+Summary
+* Spring beans can be defined
+    - Explicity using @Bean methods inside configuration class
+    - Implicitly using @Component and component-scanning
+* Applications can use both
+    - Implicit for your classes
+    - Explicit for the rest - prefer for large apps
+* Can perform initalization and clean-up
+    - Use @PostConstruct and @PreDestroy
+* Use Spring's stereotypes and/or define your own meta annotations
